@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelación y Filtrado de Tráfico en Redes | Dashboard CUN</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- KaTeX for math formulas -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        },
+                        darkBg: '#0b0f19',
+                        darkCard: '#111827',
+                        darkBorder: '#1f2937',
+                        accentBlue: '#38bdf8',
+                        accentSlate: '#94a3b8',
+                        accentGreen: '#10b981',
+                        accentRed: '#ef4444',
+                        accentPurple: '#a855f7'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+        .glow-blue {
+            box-shadow: 0 0 25px -5px rgba(56, 189, 248, 0.25);
+        }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-gray-800/80 px-4 lg:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-sky-500/20 text-white">
+                    <i data-lucide="activity" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-bold tracking-tight text-white">Modelación y Filtrado de Tráfico en Redes</h1>
+                        <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-950 text-sky-400 border border-sky-800">CUN ACA 2026</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Análisis mediante Transformadas de Fourier y Z • Ficha DIS31 / 54444</p>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="flex items-center flex-wrap gap-2">
+                <button id="btnStreamToggle" onclick="toggleLiveStreaming()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-950 hover:bg-emerald-900 text-emerald-400 border border-emerald-700/50 transition">
+                    <i data-lucide="play" id="streamIcon" class="w-3.5 h-3.5"></i>
+                    <span id="streamText">Simulación en Vivo</span>
+                </button>
+                <button onclick="openCustomDataModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-950 hover:bg-indigo-900 text-indigo-300 border border-indigo-700/50 transition">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                    <span>Ingresar Datos Propios</span>
+                </button>
+                <button onclick="exportToCSV()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span>Exportar CSV</span>
+                </button>
+                <button onclick="openInfoModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-sky-950 hover:bg-sky-900 text-sky-300 border border-sky-800 transition">
+                    <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+                    <span>Marco Teórico</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-6">
+
+        <!-- Banner Metadatos Académicos -->
+        <section class="glass-panel rounded-2xl p-4 md:p-5 border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-slate-900 via-sky-950/20 to-slate-900">
+            <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-sky-400">Corporación Unificada Nacional de Educación Superior (CUN)</span>
+                    <span class="text-slate-500">•</span>
+                    <span class="text-xs text-slate-400 font-mono">Matemáticas Especiales</span>
+                </div>
+                <div class="text-sm font-semibold text-slate-200">
+                    Docente: <span class="text-slate-300 font-normal">Juan Sebastián Cortés Cruz</span>
+                </div>
+                <div class="text-xs text-slate-400">
+                    Integrantes: <span class="text-slate-300 font-medium">Cesar Andres Muñoz Toro</span>, <span class="text-slate-300 font-medium">Paula Jizeth Triana Herrera</span>, <span class="text-slate-300 font-medium">Marleydys Selene Daza Sabalza</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-800 text-xs">
+                <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span class="text-slate-300 font-mono">Estado: Motor DSP Activo (FFT + IIR Filter)</span>
+            </div>
+        </section>
+
+        <!-- KPI Metrics Grid -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="glass-panel rounded-xl p-3.5 border border-slate-800 hover:border-sky-700/50 transition">
+                <div class="text-slate-400 text-xs font-medium flex items-center justify-between">
+                    <span>Muestras (N)</span>
+                    <i data-lucide="hash" class="w-3.5 h-3.5 text-sky-400"></i>
+                </div>
+                <div class="text-xl font-bold font-mono text-white mt-1" id="kpiN">1024</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Ventana de cálculo</div>
+            </div>
+
+            <div class="glass-panel rounded-xl p-3.5 border border-slate-800 hover:border-sky-700/50 transition">
+                <div class="text-slate-400 text-xs font-medium flex items-center justify-between">
+                    <span>Frecuencia Fs</span>
+                    <i data-lucide="gauge" class="w-3.5 h-3.5 text-indigo-400"></i>
+                </div>
+                <div class="text-xl font-bold font-mono text-indigo-300 mt-1" id="kpiFs">100.0 Hz</div>
+                <div class="text-[10px] text-slate-500 mt-0.5" id="kpiTs">Ts = 0.01 s</div>
+            </div>
+
+            <div class="glass-panel rounded-xl p-3.5 border border-slate-800 hover:border-sky-700/50 transition">
+                <div class="text-slate-400 text-xs font-medium flex items-center justify-between">
+                    <span>Polo Filtro 'a'</span>
+                    <i data-lucide="git-commit" class="w-3.5 h-3.5 text-amber-400"></i>
+                </div>
+                <div class="text-xl font-bold font-mono text-amber-300 mt-1" id="kpiA">0.85</div>
+                <div class="text-[10px] text-emerald-400 font-semibold mt-0.5" id="kpiStability">|a| &lt; 1 (Estable)</div>
+            </div>
+
+            <div class="glass-panel rounded-xl p-3.5 border border-slate-800 hover:border-sky-700/50 transition">
+                <div class="text-slate-400 text-xs font-medium flex items-center justify-between">
+                    <span>Pico Máximo</span>
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5 text-rose-400"></i>
+                </div>
+                <div class="text-xl font-bold font-mono text-rose-300 mt-1" id="kpiPeak">98.4 pkts/s</div>
+                <div class="text-[10px] text-slate-500 mt-0.5" id="kpiPeakFiltered">Filtrado: 78.2</div>
+            </div>
+
+            <div class="glass-panel rounded-xl p-3.5 border border-slate-800 hover:border-sky-700/50 transition">
+                <div class="text-slate-400 text-xs font-medium flex items-center justify-between">
+                    <span>Atenuación Ruido</span>
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i>
+                </div>
+                <div class="text-xl font-bold font-mono text-emerald-300 mt-1" id="kpiNoiseReduction">-14.2 dB</div>
+                <div class="text-[10px] text-slate-500 mt-0.5" id="kpiVarianceRatio">Var: 72% reducida</div>
+            </div>
+
+            <div class="glass-panel rounded-xl p-3.5 border border-slate-800 hover:border-sky-700/50 transition">
+                <div class="text-slate-400 text-xs font-medium flex items-center justify-between">
+                    <span>Nyquist (Fmax)</span>
+                    <i data-lucide="waves" class="w-3.5 h-3.5 text-cyan-400"></i>
+                </div>
+                <div class="text-xl font-bold font-mono text-cyan-300 mt-1" id="kpiNyquist">50.0 Hz</div>
+                <div class="text-[10px] text-slate-500 mt-0.5">Banda discreta max</div>
+            </div>
+        </section>
+
+        <!-- Main Workspace: Controls + Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Left Sidebar Controls -->
+            <div class="lg:col-span-4 space-y-4">
+                
+                <!-- Parameter Tuning Card -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-5">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-5 h-5 text-sky-400"></i>
+                            <h2 class="font-bold text-sm text-slate-200">Parámetros del Sistema</h2>
+                        </div>
+                        <button onclick="resetToDocDefaults()" title="Restablecer valores del documento CUN" class="text-xs text-sky-400 hover:text-sky-300 underline font-medium">
+                            Valores CUN
+                        </button>
+                    </div>
+
+                    <!-- Filter Pole (a) Slider -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-semibold text-slate-300">Coeficiente del Filtro (<span class="font-mono text-amber-400">a</span>):</span>
+                            <span id="valA" class="font-mono bg-slate-800 text-amber-300 px-2 py-0.5 rounded text-xs">0.85</span>
+                        </div>
+                        <input id="sliderA" type="range" min="0.00" max="0.98" step="0.01" value="0.85" oninput="updateParamA(this.value)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400">
+                        <div class="flex justify-between text-[10px] text-slate-500">
+                            <span>a = 0 (Sin filtrado)</span>
+                            <span>a = 0.85 (Doc)</span>
+                            <span>a &rarr; 1 (Alta inercia)</span>
+                        </div>
+                    </div>
+
+                    <!-- Number of Samples N -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-semibold text-slate-300">Número de Muestras (<span class="font-mono text-sky-400">N</span>):</span>
+                            <span id="valN" class="font-mono bg-slate-800 text-sky-300 px-2 py-0.5 rounded text-xs">1024</span>
+                        </div>
+                        <select id="selectN" onchange="updateParamN(this.value)" class="w-full bg-slate-900 border border-slate-700 text-slate-200 rounded-lg text-xs p-2 focus:ring-1 focus:ring-sky-500 focus:outline-none font-mono">
+                            <option value="256">256 Muestras (Rápido)</option>
+                            <option value="512">512 Muestras</option>
+                            <option value="1024" selected>1024 Muestras (Documento CUN)</option>
+                            <option value="2048">2048 Muestras (Alta resolución)</option>
+                        </select>
+                    </div>
+
+                    <!-- Sampling Time Ts -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="font-semibold text-slate-300">Periodo de Muestreo (<span class="font-mono text-indigo-400">Ts</span>):</span>
+                            <span id="valTs" class="font-mono bg-slate-800 text-indigo-300 px-2 py-0.5 rounded text-xs">0.010 s</span>
+                        </div>
+                        <input id="sliderTs" type="range" min="0.002" max="0.05" step="0.002" value="0.01" oninput="updateParamTs(this.value)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-400">
+                    </div>
+
+                    <!-- Presets Selection -->
+                    <div class="space-y-2 pt-2 border-t border-slate-800">
+                        <label class="text-xs font-semibold text-slate-300 block">Escenarios Predefinidos:</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="loadScenario('doc')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium text-left border border-slate-700 transition flex items-center gap-1.5">
+                                <i data-lucide="file-text" class="w-3 h-3 text-sky-400"></i>
+                                <span>1. Patrón CUN</span>
+                            </button>
+                            <button onclick="loadScenario('ddos')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium text-left border border-slate-700 transition flex items-center gap-1.5">
+                                <i data-lucide="zap" class="w-3 h-3 text-amber-400"></i>
+                                <span>2. Ráfagas / DDoS</span>
+                            </button>
+                            <button onclick="loadScenario('diurnal')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium text-left border border-slate-700 transition flex items-center gap-1.5">
+                                <i data-lucide="sun" class="w-3 h-3 text-purple-400"></i>
+                                <span>3. Ciclo Diurno</span>
+                            </button>
+                            <button onclick="loadScenario('step')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium text-left border border-slate-700 transition flex items-center gap-1.5">
+                                <i data-lucide="trending-up" class="w-3 h-3 text-emerald-400"></i>
+                                <span>4. Salto de Carga</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Signal Tweaks Sliders -->
+                    <div class="space-y-3 pt-2 border-t border-slate-800">
+                        <div class="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                            <span>Sintetizador de Tráfico:</span>
+                            <button onclick="regenerateNoise()" class="text-[11px] text-sky-400 hover:text-sky-300 flex items-center gap-1">
+                                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Re-aleatorizar
+                            </button>
+                        </div>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[11px] text-slate-400">
+                                <span>Nivel de Ruido Gaussiano:</span>
+                                <span id="valNoise" class="font-mono text-slate-300">8.0 pkts/s</span>
+                            </div>
+                            <input id="sliderNoise" type="range" min="0" max="25" step="0.5" value="8.0" oninput="updateNoise(this.value)" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400">
+                        </div>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[11px] text-slate-400">
+                                <span>Tráfico Base Medio (DC):</span>
+                                <span id="valMean" class="font-mono text-slate-300">60 pkts/s</span>
+                            </div>
+                            <input id="sliderMean" type="range" min="10" max="150" step="5" value="60" oninput="updateMean(this.value)" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-400">
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Z-Plane Interactive Pole Diagram -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="circle-dot" class="w-4 h-4 text-amber-400"></i>
+                            <h3 class="font-bold text-xs text-slate-200">Plano Z y Círculo Unitario</h3>
+                        </div>
+                        <span id="zStabilityTag" class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
+                            Estable (|z|=0.85 &lt; 1)
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <canvas id="zPlaneCanvas" width="220" height="220" class="bg-slate-900/90 rounded-xl border border-slate-800"></canvas>
+                    </div>
+                    <div class="text-[11px] text-slate-400 leading-relaxed text-center">
+                        Función de Transferencia: <span class="font-mono text-sky-400">H(z) = 1 / (1 - a·z⁻¹)</span><br>
+                        Polo en <span class="font-mono text-amber-300" id="poleCoords">z = 0.85 + 0j</span> (Interior al círculo unitario).
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Visualizations Area -->
+            <div class="lg:col-span-8 space-y-6">
+
+                <!-- Figure 1: Time Domain Simulation Chart -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4 glow-blue">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 text-xs font-bold rounded bg-sky-950 text-sky-400 border border-sky-800">Figura 1</span>
+                                <h3 class="font-bold text-base text-white">Simulación en el Dominio del Tiempo</h3>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">Tráfico de entrada ruidoso <span class="font-mono text-slate-300">x[n]</span> vs Tráfico suavizado <span class="font-mono text-sky-400">y[n]</span></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-3 text-xs font-medium">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-3 h-3 rounded-full bg-slate-400"></span>
+                                    <span class="text-slate-300">x[n] (Original)</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-3 h-3 rounded-full bg-sky-400 shadow-sm shadow-sky-400"></span>
+                                    <span class="text-sky-300 font-semibold">y[n] (Filtrado)</span>
+                                </div>
+                            </div>
+                            <div class="border-l border-slate-700 pl-2 ml-1">
+                                <select id="timeRangeSelect" onchange="updateTimeDomainRange(this.value)" class="bg-slate-900 border border-slate-700 text-slate-300 rounded text-xs px-2 py-1 focus:outline-none">
+                                    <option value="300" selected>Primeras 300 muestras</option>
+                                    <option value="500">Primeras 500 muestras</option>
+                                    <option value="all">Todas las muestras (N)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chart Canvas -->
+                    <div class="h-72 w-full relative">
+                        <canvas id="timeChart"></canvas>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
+                        <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-slate-400">Desviación Estándar Original (\(\sigma_x\)):</span>
+                            <span id="stdDevOriginal" class="font-mono font-bold text-slate-200 block text-sm mt-0.5">--</span>
+                        </div>
+                        <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-slate-400">Desviación Estándar Filtrada (\(\sigma_y\)):</span>
+                            <span id="stdDevFiltered" class="font-mono font-bold text-sky-400 block text-sm mt-0.5">--</span>
+                        </div>
+                        <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                            <span class="text-slate-400">Eficacia de Suavizado:</span>
+                            <span id="smoothEfficiency" class="font-mono font-bold text-emerald-400 block text-sm mt-0.5">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Figure 2: Frequency Domain Spectrum (FFT Logarithmic) -->
+                <div class="glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 text-xs font-bold rounded bg-indigo-950 text-indigo-400 border border-indigo-800">Figura 2</span>
+                                <h3 class="font-bold text-base text-white">Espectro de Frecuencia mediante FFT</h3>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-0.5">Magnitud en escala logarítmica |X[k]| vs |Y[k]| calculada con FFT discreta</p>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs font-medium">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-3 h-3 rounded-full bg-slate-400"></span>
+                                <span class="text-slate-300">|X[k]| Original</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-3 h-3 rounded-full bg-sky-400"></span>
+                                <span class="text-sky-300 font-semibold">|Y[k]| Filtrado</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FFT Chart Canvas -->
+                    <div class="h-64 w-full relative">
+                        <canvas id="fftChart"></canvas>
+                    </div>
+
+                    <div class="text-xs text-slate-400 bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-start gap-2">
+                        <i data-lucide="info" class="w-4 h-4 text-sky-400 shrink-0 mt-0.5"></i>
+                        <span>
+                            <strong class="text-slate-200">Interpretación Espectral:</strong> El pico dominante en bajas frecuencias (\(f \approx 0.5 - 2\text{ Hz}\)) representa la periodicidad del tráfico (horas punta). Las componentes de alta frecuencia (\(&gt; 4\text{ Hz}\)) causadas por ráfagas estocásticas son atenuadas drásticamente por el filtro paso bajo.
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Impulse Response & Difference Equation Details -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    
+                    <!-- Impulse Response Chart -->
+                    <div class="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="bar-chart-2" class="w-4 h-4 text-purple-400"></i>
+                                <h4 class="font-bold text-xs text-slate-200">Respuesta al Impulso \(h[n] = a^n u[n]\)</h4>
+                            </div>
+                            <span class="text-[10px] text-purple-300 font-mono">Memoria Discreta</span>
+                        </div>
+                        <div class="h-40 relative">
+                            <canvas id="impulseChart"></canvas>
+                        </div>
+                        <p class="text-[11px] text-slate-400">
+                            Ponderación temporal de paquetes pasados en la convolución lineal: \(y[n] = \sum_{k=0}^n a^k x[n-k]\).
+                        </p>
+                    </div>
+
+                    <!-- Live Difference Equation Step Inspector -->
+                    <div class="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="binary" class="w-4 h-4 text-emerald-400"></i>
+                                <h4 class="font-bold text-xs text-slate-200">Inspección de Muestra en Tiempo Real</h4>
+                            </div>
+                            <span class="text-[10px] text-emerald-400 font-mono">Paso n = <span id="inspectSampleIdx">150</span></span>
+                        </div>
+                        <div class="space-y-2">
+                            <input id="sliderInspect" type="range" min="1" max="299" value="150" oninput="inspectSample(this.value)" class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400">
+                            
+                            <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800 text-xs font-mono space-y-1.5">
+                                <div class="text-slate-400">x[n] = <span id="inspX" class="text-slate-200 font-bold">--</span> pkts/s</div>
+                                <div class="text-slate-400">y[n-1] = <span id="inspYprev" class="text-amber-300">--</span> pkts/s</div>
+                                <div class="text-slate-400">a · y[n-1] = <span id="inspAyprev" class="text-indigo-300">--</span></div>
+                                <div class="border-t border-slate-800 pt-1 text-sky-400 font-bold">
+                                    y[n] = <span id="inspY">--</span> pkts/s
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-slate-400">
+                            Ecuación recursiva de 1 polo en acción. Observe cómo \(a \cdot y[n-1]\) aporta inercia y amortigua fluctuaciones súbitas.
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Modal 1: Custom Data Input & Upload -->
+    <div id="customDataModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl relative">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-950 text-indigo-400 flex items-center justify-center border border-indigo-800">
+                        <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-white">Ingresar Datos de Prueba Personalizados</h3>
+                        <p class="text-xs text-slate-400">Pruebe el filtro digital con sus propias series temporales de tráfico</p>
+                    </div>
+                </div>
+                <button onclick="closeCustomDataModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Upload File Box -->
+            <div class="border-2 border-dashed border-slate-700 hover:border-sky-500 rounded-xl p-4 text-center cursor-pointer transition bg-slate-950/50" onclick="document.getElementById('fileUploadInput').click()">
+                <input type="file" id="fileUploadInput" accept=".csv, .txt, .json" class="hidden" onchange="handleFileUpload(event)">
+                <i data-lucide="file-up" class="w-8 h-8 text-sky-400 mx-auto mb-2"></i>
+                <p class="text-xs font-semibold text-slate-200">Haga clic para subir archivo (.csv, .txt o .json)</p>
+                <p class="text-[11px] text-slate-500 mt-1">Columna de datos numéricos o vector JSON</p>
+            </div>
+
+            <div class="flex items-center gap-2 my-2 text-xs text-slate-500">
+                <div class="flex-1 border-t border-slate-800"></div>
+                <span>o escriba / pegue los valores directamente</span>
+                <div class="flex-1 border-t border-slate-800"></div>
+            </div>
+
+            <!-- Manual Text Input -->
+            <div class="space-y-1.5">
+                <label class="text-xs font-semibold text-slate-300 flex justify-between">
+                    <span>Valores de Tráfico \(x[n]\) (Separados por comas o saltos de línea):</span>
+                    <span id="customDataCount" class="text-sky-400 font-mono text-[11px]">0 muestras detectadas</span>
+                </label>
+                <textarea id="customDataTextarea" rows="6" oninput="validateCustomDataInput()" placeholder="Ejemplo: 54.2, 58.1, 62.4, 59.8, 71.0, 68.3, 55.4, 49.2, 85.0, 77.2, 63.1..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-slate-200 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"></textarea>
+            </div>
+
+            <!-- Pre-made Examples buttons -->
+            <div class="flex items-center gap-2 flex-wrap text-xs">
+                <span class="text-slate-400 text-[11px]">Cargar muestra rápida:</span>
+                <button onclick="loadSampleText('burst')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700">Ráfaga Intensa (60 pts)</button>
+                <button onclick="loadSampleText('square')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700">Onda Cuadrada</button>
+                <button onclick="loadSampleText('triangle')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700">Rampa Triangular</button>
+            </div>
+
+            <div class="flex justify-end gap-2 border-t border-slate-800 pt-3">
+                <button onclick="closeCustomDataModal()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 border border-slate-700">Cancelar</button>
+                <button id="btnApplyCustomData" onclick="applyCustomData()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-600/30">Aplicar y Filtrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Academic & Mathematical Theory -->
+    <div id="infoModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-5 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-sky-950 text-sky-400 flex items-center justify-center border border-sky-800">
+                        <i data-lucide="book-open" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base text-white">Marco Matemático y Teórico (Reporte CUN 2026)</h3>
+                        <p class="text-xs text-slate-400">Resumen de las 4 etapas del modelo de filtrado de redes</p>
+                    </div>
+                </div>
+                <button onclick="closeInfoModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Stages Accordion / Cards -->
+            <div class="space-y-4 text-xs">
+                
+                <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between text-sky-400 font-bold text-sm">
+                        <span>Etapa 1: Definición de la Señal Discreta</span>
+                        <span class="font-mono text-xs">x[n]</span>
+                    </div>
+                    <p class="text-slate-300 leading-relaxed">
+                        El tráfico de red se modela como una secuencia de muestras ordenadas cronológicamente \(x[n] = \{x_0, x_1, \dots, x_{N-1}\}\), donde cada elemento representa el volumen de paquetes por segundo en el intervalo temporal discreto \(n\), con \(T_s = 0.01\text{ s}\).
+                    </p>
+                </div>
+
+                <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between text-indigo-400 font-bold text-sm">
+                        <span>Etapa 2: Análisis Frecuencial (Transformada de Fourier)</span>
+                        <span class="font-mono text-xs">DFT / FFT</span>
+                    </div>
+                    <div class="bg-slate-900 p-2.5 rounded-lg font-mono text-center text-slate-200">
+                        $$X[k] = \sum_{n=0}^{N-1} x[n] \cdot e^{-j \frac{2\pi}{N} k n}, \quad k = 0, 1, \dots, N-1$$
+                    </div>
+                    <p class="text-slate-300 leading-relaxed">
+                        Los picos de alta magnitud en frecuencias bajas denotan ciclos deterministas de tráfico (horas punta). Las amplitudes distribuidas en alta frecuencia representan ráfagas estocásticas y ruido a mitigar.
+                    </p>
+                </div>
+
+                <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between text-amber-400 font-bold text-sm">
+                        <span>Etapa 3: Modelación del Filtro con Transformada Z</span>
+                        <span class="font-mono text-xs">H(z) &amp; Recursión</span>
+                    </div>
+                    <div class="bg-slate-900 p-2.5 rounded-lg font-mono text-center text-slate-200">
+                        $$H(z) = \frac{Y(z)}{X(z)} = \frac{1}{1 - a \cdot z^{-1}}, \quad |a| < 1 \text{ (Estabilidad de Schur)}$$
+                        $$y[n] = x[n] + a \cdot y[n-1]$$
+                    </div>
+                    <p class="text-slate-300 leading-relaxed">
+                        El coeficiente \(a\) actúa como la memoria del sistema. Para \(a = 0.85\), el filtro asigna un peso sustancial a las muestras pasadas \(y[n-1]\), amortiguando de forma drástica fluctuaciones rápidas.
+                    </p>
+                </div>
+
+                <div class="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between text-emerald-400 font-bold text-sm">
+                        <span>Etapa 4: Convolución y Respuesta al Impulso</span>
+                        <span class="font-mono text-xs">h[n] = aⁿ · u[n]</span>
+                    </div>
+                    <div class="bg-slate-900 p-2.5 rounded-lg font-mono text-center text-slate-200">
+                        $$y[n] = (h * x)[n] = \sum_{k=0}^{n} a^k \cdot x[n-k]$$
+                    </div>
+                    <p class="text-slate-300 leading-relaxed">
+                        La convolución discreta demuestra matemáticamente la equivalencia de la recursión temporal con el filtrado paso bajo en el dominio frecuencial.
+                    </p>
+                </div>
+
+            </div>
+
+            <div class="border-t border-slate-800 pt-3 flex justify-between items-center text-slate-400 text-xs">
+                <span>Referencias: Oppenheim &amp; Schafer (2010), Proakis &amp; Manolakis (2006)</span>
+                <button onclick="closeInfoModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-slate-950/60 py-4 px-4 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+            <span>Corporación Unificada Nacional de Educación Superior (CUN) — Matemáticas Especiales 2026</span>
+            <span class="font-mono text-slate-400">Ficha: DIS31 / 54444 • Grupo 27 ACA</span>
+        </div>
+    </footer>
+
+    <!-- JavaScript Core Simulation & Logic -->
+    <script>
+        // ==========================================
+        // STATE & GLOBAL PARAMETERS
+        // ==========================================
+        let state = {
+            N: 1024,
+            Ts: 0.01,
+            a: 0.85,
+            noiseLevel: 8.0,
+            meanTraffic: 60.0,
+            scenario: 'doc',
+            timeRange: 300,
+            x: [], // Input raw signal
+            y: [], // Filtered output signal
+            timeArr: [], // Time axis in seconds
+            fftFreqs: [], // Frequencies for FFT
+            fftMagX: [], // |X[k]|
+            fftMagY: [], // |Y[k]|
+            isStreaming: false,
+            streamInterval: null
+        };
+
+        // Chart instances
+        let timeChart = null;
+        let fftChart = null;
+        let impulseChart = null;
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            renderMath();
+            initCharts();
+            generateSignalAndProcess();
+            drawZPlane();
+        });
+
+        function renderMath() {
+            if (window.renderMathInElement) {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '\\(', right: '\\)', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        // ==========================================
+        // SIGNAL GENERATOR & DSP PIPELINE
+        // ==========================================
+        function generateSignalAndProcess() {
+            const N = state.N;
+            const Ts = state.Ts;
+            const a = state.a;
+            
+            state.timeArr = new Array(N);
+            state.x = new Array(N);
+            state.y = new Array(N);
+
+            // Pseudo-random Gaussian Noise generator (Box-Muller)
+            function gaussianRandom(mean = 0, stdev = 1) {
+                let u = 1 - Math.random();
+                let v = Math.random();
+                let z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+                return z * stdev + mean;
+            }
+
+            // 1. Generate Input Signal x[n] based on Scenario
+            for (let n = 0; n < N; n++) {
+                const t = n * Ts;
+                state.timeArr[n] = t;
+                let val = state.meanTraffic;
+
+                if (state.scenario === 'doc') {
+                    // Document CUN simulation: Low-frequency cycles (hours punta) + Gaussian noise
+                    // Periodicity matching Figure 1 (0.5 Hz & 1.2 Hz components)
+                    val += 14 * Math.sin(2 * Math.PI * 0.55 * t) + 7 * Math.cos(2 * Math.PI * 1.15 * t);
+                    val += gaussianRandom(0, state.noiseLevel);
+                } else if (state.scenario === 'ddos') {
+                    // Sudden intense packet bursts
+                    val += 8 * Math.sin(2 * Math.PI * 0.3 * t);
+                    if (n > 80 && n < 180) val += 50; // Burst 1
+                    if (n > 350 && n < 420) val += 70; // Burst 2
+                    val += gaussianRandom(0, state.noiseLevel * 1.4);
+                } else if (state.scenario === 'diurnal') {
+                    // Diurnal traffic cycle (smooth multi-harmonic)
+                    val += 25 * Math.sin(2 * Math.PI * 0.2 * t) + 12 * Math.sin(2 * Math.PI * 0.4 * t);
+                    val += gaussianRandom(0, state.noiseLevel * 0.7);
+                } else if (state.scenario === 'step') {
+                    // Step load change
+                    val += (n > N / 3 ? 35 : 0);
+                    val += gaussianRandom(0, state.noiseLevel * 0.8);
+                }
+
+                state.x[n] = Math.max(0, val); // Non-negative traffic packets
+            }
+
+            // 2. Filter Signal: First-order low-pass filter (Exponential Moving Average / normalized single-pole)
+            // y[n] = (1 - a)*x[n] + a*y[n-1] ensuring scale congruence with Figure 1 of CUN Report
+            let yPrev = state.x[0];
+            for (let n = 0; n < N; n++) {
+                state.y[n] = (1 - a) * state.x[n] + a * yPrev;
+                yPrev = state.y[n];
+            }
+
+            // 3. Frequency Spectrum via FFT
+            computeFFT();
+
+            // 4. Update UI & Charts
+            updateKPIs();
+            updateCharts();
+            inspectSample(Math.min(150, Math.floor(N / 2)));
+        }
+
+        // ==========================================
+        // FAST FOURIER TRANSFORM (Cooley-Tukey Radix-2)
+        // ==========================================
+        function computeFFT() {
+            const N = state.N;
+            const Fs = 1 / state.Ts;
+            const halfN = N / 2;
+
+            function fftRadix2(re, im) {
+                const n = re.length;
+                if (n <= 1) return;
+
+                let evenRe = new Float64Array(n / 2);
+                let evenIm = new Float64Array(n / 2);
+                let oddRe = new Float64Array(n / 2);
+                let oddIm = new Float64Array(n / 2);
+
+                for (let i = 0; i < n / 2; i++) {
+                    evenRe[i] = re[2 * i];
+                    evenIm[i] = im[2 * i];
+                    oddRe[i] = re[2 * i + 1];
+                    oddIm[i] = im[2 * i + 1];
+                }
+
+                fftRadix2(evenRe, evenIm);
+                fftRadix2(oddRe, oddIm);
+
+                for (let k = 0; k < n / 2; k++) {
+                    const angle = -2 * Math.PI * k / n;
+                    const cosA = Math.cos(angle);
+                    const sinA = Math.sin(angle);
+                    const tRe = cosA * oddRe[k] - sinA * oddIm[k];
+                    const tIm = sinA * oddRe[k] + cosA * oddIm[k];
+
+                    re[k] = evenRe[k] + tRe;
+                    im[k] = evenIm[k] + tIm;
+                    re[k + n / 2] = evenRe[k] - tRe;
+                    im[k + n / 2] = evenIm[k] - tIm;
+                }
+            }
+
+            // Prepare Arrays for x[n] and y[n]
+            let reX = new Float64Array(state.x);
+            let imX = new Float64Array(N);
+            let reY = new Float64Array(state.y);
+            let imY = new Float64Array(N);
+
+            fftRadix2(reX, imX);
+            fftRadix2(reY, imY);
+
+            // Compute Magnitude (up to 10 Hz as in Figure 2 of document)
+            const maxPlotFreq = Math.min(10, Fs / 2);
+            state.fftFreqs = [];
+            state.fftMagX = [];
+            state.fftMagY = [];
+
+            for (let k = 0; k < halfN; k++) {
+                const freq = (k * Fs) / N;
+                if (freq > maxPlotFreq) break;
+
+                const magX = Math.sqrt(reX[k] * reX[k] + imX[k] * imX[k]);
+                const magY = Math.sqrt(reY[k] * reY[k] + imY[k] * imY[k]);
+
+                state.fftFreqs.push(freq.toFixed(2));
+                state.fftMagX.push(magX);
+                state.fftMagY.push(magY);
+            }
+        }
+
+        // ==========================================
+        // KPI & METRICS CALCULATION
+        // ==========================================
+        function updateKPIs() {
+            const Fs = 1 / state.Ts;
+            document.getElementById('kpiN').textContent = state.N;
+            document.getElementById('kpiFs').textContent = `${Fs.toFixed(1)} Hz`;
+            document.getElementById('kpiTs').textContent = `Ts = ${state.Ts.toFixed(3)} s`;
+            document.getElementById('kpiA').textContent = state.a.toFixed(2);
+            document.getElementById('kpiNyquist').textContent = `${(Fs / 2).toFixed(1)} Hz`;
+
+            const maxRaw = Math.max(...state.x);
+            const maxFilt = Math.max(...state.y);
+            document.getElementById('kpiPeak').textContent = `${maxRaw.toFixed(1)} pkts/s`;
+            document.getElementById('kpiPeakFiltered').textContent = `Filtrado: ${maxFilt.toFixed(1)}`;
+
+            // Variance & Standard Deviation
+            const meanX = state.x.reduce((a, b) => a + b, 0) / state.x.length;
+            const meanY = state.y.reduce((a, b) => a + b, 0) / state.y.length;
+            const varX = state.x.reduce((a, b) => a + Math.pow(b - meanX, 2), 0) / state.x.length;
+            const varY = state.y.reduce((a, b) => a + Math.pow(b - meanY, 2), 0) / state.y.length;
+            const stdX = Math.sqrt(varX);
+            const stdY = Math.sqrt(varY);
+
+            document.getElementById('stdDevOriginal').textContent = `${stdX.toFixed(2)} pkts/s`;
+            document.getElementById('stdDevFiltered').textContent = `${stdY.toFixed(2)} pkts/s`;
+
+            const reductionPct = Math.max(0, ((varX - varY) / (varX || 1)) * 100);
+            document.getElementById('smoothEfficiency').textContent = `${reductionPct.toFixed(1)}% atenuado`;
+            document.getElementById('kpiVarianceRatio').textContent = `Var: ${reductionPct.toFixed(0)}% reducida`;
+
+            // Attenuation in dB
+            const attenDb = 10 * Math.log10((varY + 1e-6) / (varX + 1e-6));
+            document.getElementById('kpiNoiseReduction').textContent = `${attenDb.toFixed(1)} dB`;
+
+            // Pole & Schur stability
+            const isStable = Math.abs(state.a) < 1;
+            const stabEl = document.getElementById('kpiStability');
+            const zStabTag = document.getElementById('zStabilityTag');
+            const poleEl = document.getElementById('poleCoords');
+
+            if (isStable) {
+                stabEl.textContent = `|a| = ${state.a.toFixed(2)} < 1 (Estable)`;
+                stabEl.className = 'text-[10px] text-emerald-400 font-semibold mt-0.5';
+                zStabTag.textContent = `Estable (|z|=${state.a.toFixed(2)} < 1)`;
+                zStabTag.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800';
+            } else {
+                stabEl.textContent = `|a| ≥ 1 (Inestable!)`;
+                stabEl.className = 'text-[10px] text-rose-400 font-semibold mt-0.5';
+                zStabTag.textContent = `Inestable (|z| ≥ 1)`;
+                zStabTag.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-800';
+            }
+            poleEl.textContent = `z = ${state.a.toFixed(2)} + 0j`;
+        }
+
+        // ==========================================
+        // CHART.JS INITIALIZATION & UPDATES
+        // ==========================================
+        function initCharts() {
+            // Chart defaults for dark theme
+            Chart.defaults.color = '#94a3b8';
+            Chart.defaults.borderColor = '#1f2937';
+            Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+
+            // 1. Time Domain Chart (Figure 1)
+            const ctxTime = document.getElementById('timeChart').getContext('2d');
+            timeChart = new Chart(ctxTime, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Tráfico Original Ruidoso x[n]',
+                            data: [],
+                            borderColor: '#94a3b8',
+                            backgroundColor: 'rgba(148, 163, 184, 0.08)',
+                            borderWidth: 1.2,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Tráfico Filtrado y[n] (a = ' + state.a + ')',
+                            data: [],
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                            borderWidth: 2.2,
+                            pointRadius: 0,
+                            tension: 0.2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 250 },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: '#0f172a',
+                            borderColor: '#334155',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Tiempo (s)', color: '#64748b', font: { size: 11 } },
+                            grid: { color: '#1e293b' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Paquetes / Segundo', color: '#64748b', font: { size: 11 } },
+                            grid: { color: '#1e293b' }
+                        }
+                    }
+                }
+            });
+
+            // 2. FFT Spectrum Chart (Figure 2 - Logarithmic)
+            const ctxFft = document.getElementById('fftChart').getContext('2d');
+            fftChart = new Chart(ctxFft, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Espectro Original X[k]',
+                            data: [],
+                            borderColor: '#94a3b8',
+                            borderWidth: 1.2,
+                            pointRadius: 0,
+                            tension: 0.2
+                        },
+                        {
+                            label: 'Espectro Filtrado Y[k]',
+                            data: [],
+                            borderColor: '#38bdf8',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 250 },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: '#0f172a',
+                            borderColor: '#334155',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Frecuencia (Hz)', color: '#64748b', font: { size: 11 } },
+                            grid: { color: '#1e293b' }
+                        },
+                        y: {
+                            type: 'logarithmic',
+                            title: { display: true, text: '|Magnitud| (Escala Log)', color: '#64748b', font: { size: 11 } },
+                            grid: { color: '#1e293b' },
+                            min: 1
+                        }
+                    }
+                }
+            });
+
+            // 3. Impulse Response Chart (Stage 4)
+            const ctxImp = document.getElementById('impulseChart').getContext('2d');
+            impulseChart = new Chart(ctxImp, {
+                type: 'bar',
+                data: {
+                    labels: Array.from({length: 25}, (_, i) => `n=${i}`),
+                    datasets: [{
+                        label: 'h[n] = aⁿ',
+                        data: [],
+                        backgroundColor: '#a855f7',
+                        borderRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#1e293b' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            if (!timeChart || !fftChart || !impulseChart) return;
+
+            // Update Time Chart
+            let limit = state.timeRange === 'all' ? state.N : parseInt(state.timeRange);
+            limit = Math.min(limit, state.N);
+
+            const displayTime = state.timeArr.slice(0, limit).map(t => t.toFixed(2));
+            const displayX = state.x.slice(0, limit);
+            const displayY = state.y.slice(0, limit);
+
+            timeChart.data.labels = displayTime;
+            timeChart.data.datasets[0].data = displayX;
+            timeChart.data.datasets[1].data = displayY;
+            timeChart.data.datasets[1].label = `Tráfico Filtrado y[n] (a = ${state.a.toFixed(2)})`;
+            timeChart.update('none');
+
+            // Update FFT Chart
+            fftChart.data.labels = state.fftFreqs;
+            fftChart.data.datasets[0].data = state.fftMagX;
+            fftChart.data.datasets[1].data = state.fftMagY;
+            fftChart.update('none');
+
+            // Update Impulse Chart: h[n] = a^n
+            const impulseData = Array.from({length: 25}, (_, n) => Math.pow(state.a, n));
+            impulseChart.data.datasets[0].data = impulseData;
+            impulseChart.update('none');
+
+            drawZPlane();
+        }
+
+        // ==========================================
+        // Z-PLANE CANVAS VISUALIZATION
+        // ==========================================
+        function drawZPlane() {
+            const canvas = document.getElementById('zPlaneCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const radius = 80; // Radius of unit circle in pixels
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid Axes
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(15, cy);
+            ctx.lineTo(w - 15, cy);
+            ctx.moveTo(cx, 15);
+            ctx.lineTo(cx, h - 15);
+            ctx.stroke();
+
+            // Axis labels
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px JetBrains Mono';
+            ctx.fillText('Re', w - 18, cy - 6);
+            ctx.fillText('Im', cx + 6, 20);
+            ctx.fillText('1.0', cx + radius - 6, cy + 14);
+            ctx.fillText('-1.0', cx - radius - 18, cy + 14);
+
+            // Unit Circle |z| = 1
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Fill stable region lightly
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.04)';
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Draw Pole 'a' (Cross symbol X)
+            const polePx = cx + state.a * radius;
+            const polePy = cy;
+            const isStable = Math.abs(state.a) < 1;
+
+            ctx.strokeStyle = isStable ? '#f59e0b' : '#ef4444';
+            ctx.lineWidth = 2.5;
+            const size = 6;
+            ctx.beginPath();
+            ctx.moveTo(polePx - size, polePy - size);
+            ctx.lineTo(polePx + size, polePy + size);
+            ctx.moveTo(polePx - size, polePy + size);
+            ctx.lineTo(polePx + size, polePy - size);
+            ctx.stroke();
+
+            // Pole label
+            ctx.fillStyle = isStable ? '#fbbf24' : '#f87171';
+            ctx.font = 'bold 10px JetBrains Mono';
+            ctx.fillText(`Polo (z = ${state.a.toFixed(2)})`, polePx - 30, polePy - 12);
+        }
+
+        // ==========================================
+        // SAMPLE STEP INSPECTOR (Stage 3 & 4)
+        // ==========================================
+        function inspectSample(idx) {
+            idx = parseInt(idx);
+            if (idx >= state.x.length) idx = state.x.length - 1;
+            if (idx < 1) idx = 1;
+
+            document.getElementById('inspectSampleIdx').textContent = idx;
+            const xVal = state.x[idx];
+            const yPrevVal = state.y[idx - 1];
+            const yVal = state.y[idx];
+            const aVal = state.a;
+
+            document.getElementById('inspX').textContent = xVal.toFixed(2);
+            document.getElementById('inspYprev').textContent = yPrevVal.toFixed(2);
+            document.getElementById('inspAyprev').textContent = (aVal * yPrevVal).toFixed(2);
+            document.getElementById('inspY').textContent = yVal.toFixed(2);
+        }
+
+        // ==========================================
+        // EVENT HANDLERS & CONTROLS
+        // ==========================================
+        function updateParamA(val) {
+            state.a = parseFloat(val);
+            document.getElementById('valA').textContent = state.a.toFixed(2);
+            generateSignalAndProcess();
+        }
+
+        function updateParamN(val) {
+            state.N = parseInt(val);
+            document.getElementById('valN').textContent = state.N;
+            document.getElementById('sliderInspect').max = state.N - 1;
+            generateSignalAndProcess();
+        }
+
+        function updateParamTs(val) {
+            state.Ts = parseFloat(val);
+            document.getElementById('valTs').textContent = `${state.Ts.toFixed(3)} s`;
+            generateSignalAndProcess();
+        }
+
+        function updateNoise(val) {
+            state.noiseLevel = parseFloat(val);
+            document.getElementById('valNoise').textContent = `${state.noiseLevel.toFixed(1)} pkts/s`;
+            generateSignalAndProcess();
+        }
+
+        function updateMean(val) {
+            state.meanTraffic = parseFloat(val);
+            document.getElementById('valMean').textContent = `${state.meanTraffic.toFixed(0)} pkts/s`;
+            generateSignalAndProcess();
+        }
+
+        function updateTimeDomainRange(val) {
+            state.timeRange = val;
+            updateCharts();
+        }
+
+        function regenerateNoise() {
+            generateSignalAndProcess();
+        }
+
+        function resetToDocDefaults() {
+            state.a = 0.85;
+            state.N = 1024;
+            state.Ts = 0.01;
+            state.noiseLevel = 8.0;
+            state.meanTraffic = 60.0;
+            state.scenario = 'doc';
+            state.timeRange = 300;
+
+            document.getElementById('sliderA').value = 0.85;
+            document.getElementById('valA').textContent = '0.85';
+            document.getElementById('selectN').value = '1024';
+            document.getElementById('valN').textContent = '1024';
+            document.getElementById('sliderTs').value = 0.01;
+            document.getElementById('valTs').textContent = '0.010 s';
+            document.getElementById('sliderNoise').value = 8.0;
+            document.getElementById('valNoise').textContent = '8.0 pkts/s';
+            document.getElementById('sliderMean').value = 60;
+            document.getElementById('valMean').textContent = '60 pkts/s';
+            document.getElementById('timeRangeSelect').value = '300';
+
+            generateSignalAndProcess();
+        }
+
+        function loadScenario(type) {
+            state.scenario = type;
+            generateSignalAndProcess();
+        }
+
+        // ==========================================
+        // REAL-TIME LIVE STREAMING SIMULATION
+        // ==========================================
+        function toggleLiveStreaming() {
+            state.isStreaming = !state.isStreaming;
+            const icon = document.getElementById('streamIcon');
+            const text = document.getElementById('streamText');
+            const btn = document.getElementById('btnStreamToggle');
+
+            if (state.isStreaming) {
+                btn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-950 hover:bg-rose-900 text-rose-400 border border-rose-700/50 transition';
+                text.textContent = 'Detener Simulación';
+                icon.setAttribute('data-lucide', 'square');
+                lucide.createIcons();
+
+                let stepCount = state.N;
+                let lastY = state.y[state.y.length - 1] || state.meanTraffic;
+
+                state.streamInterval = setInterval(() => {
+                    const t = stepCount * state.Ts;
+                    let newX = state.meanTraffic + 14 * Math.sin(2 * Math.PI * 0.55 * t) + (Math.random() - 0.5) * state.noiseLevel * 3;
+                    newX = Math.max(0, newX);
+
+                    let newY = (1 - state.a) * newX + state.a * lastY;
+                    lastY = newY;
+
+                    // Push and pop buffer
+                    state.x.shift();
+                    state.x.push(newX);
+                    state.y.shift();
+                    state.y.push(newY);
+                    state.timeArr.shift();
+                    state.timeArr.push(t);
+
+                    stepCount++;
+
+                    computeFFT();
+                    updateKPIs();
+                    updateCharts();
+                }, 80);
+            } else {
+                clearInterval(state.streamInterval);
+                btn.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-950 hover:bg-emerald-900 text-emerald-400 border border-emerald-700/50 transition';
+                text.textContent = 'Simulación en Vivo';
+                icon.setAttribute('data-lucide', 'play');
+                lucide.createIcons();
+            }
+        }
+
+        // ==========================================
+        // CUSTOM DATA MODAL & FILE PROCESSING
+        // ==========================================
+        function openCustomDataModal() {
+            document.getElementById('customDataModal').classList.remove('hidden');
+        }
+
+        function closeCustomDataModal() {
+            document.getElementById('customDataModal').classList.add('hidden');
+        }
+
+        function openInfoModal() {
+            document.getElementById('infoModal').classList.remove('hidden');
+        }
+
+        function closeInfoModal() {
+            document.getElementById('infoModal').classList.add('hidden');
+        }
+
+        function validateCustomDataInput() {
+            const txt = document.getElementById('customDataTextarea').value;
+            const values = extractNumbers(txt);
+            document.getElementById('customDataCount').textContent = `${values.length} muestras detectadas`;
+        }
+
+        function extractNumbers(text) {
+            const parts = text.split(/[\s,;\n\r\t]+/).filter(Boolean);
+            return parts.map(p => parseFloat(p)).filter(v => !isNaN(v));
+        }
+
+        function loadSampleText(type) {
+            let sample = [];
+            if (type === 'burst') {
+                for (let i = 0; i < 60; i++) {
+                    let v = 50 + Math.sin(i / 3) * 10;
+                    if (i >= 20 && i <= 35) v += 50 + Math.random() * 20;
+                    sample.push(v.toFixed(1));
+                }
+            } else if (type === 'square') {
+                for (let i = 0; i < 60; i++) {
+                    sample.push(Math.floor(i / 10) % 2 === 0 ? "80.0" : "30.0");
+                }
+            } else if (type === 'triangle') {
+                for (let i = 0; i < 60; i++) {
+                    sample.push((30 + (i % 20) * 3).toFixed(1));
+                }
+            }
+            document.getElementById('customDataTextarea').value = sample.join(', ');
+            validateCustomDataInput();
+        }
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const content = event.target.result;
+                document.getElementById('customDataTextarea').value = content;
+                validateCustomDataInput();
+            };
+            reader.readAsText(file);
+        }
+
+        function applyCustomData() {
+            const txt = document.getElementById('customDataTextarea').value;
+            const values = extractNumbers(txt);
+
+            if (values.length < 8) {
+                alert('Por favor ingrese al menos 8 muestras numéricas.');
+                return;
+            }
+
+            // Next power of 2 for FFT
+            let nextPow2 = 256;
+            if (values.length > 256) nextPow2 = 512;
+            if (values.length > 512) nextPow2 = 1024;
+            if (values.length > 1024) nextPow2 = 2048;
+
+            state.N = nextPow2;
+            document.getElementById('selectN').value = nextPow2.toString();
+            document.getElementById('valN').textContent = nextPow2;
+
+            // Zero pad or repeat to fill N
+            state.x = new Array(nextPow2);
+            for (let i = 0; i < nextPow2; i++) {
+                state.x[i] = i < values.length ? values[i] : values[values.length - 1];
+            }
+
+            state.timeArr = new Array(nextPow2);
+            for (let i = 0; i < nextPow2; i++) {
+                state.timeArr[i] = i * state.Ts;
+            }
+
+            // Filter
+            let yPrev = state.x[0];
+            state.y = new Array(nextPow2);
+            for (let n = 0; n < nextPow2; n++) {
+                state.y[n] = (1 - state.a) * state.x[n] + state.a * yPrev;
+                yPrev = state.y[n];
+            }
+
+            state.scenario = 'custom';
+            computeFFT();
+            updateKPIs();
+            updateCharts();
+            closeCustomDataModal();
+        }
+
+        // ==========================================
+        // EXPORT TO CSV
+        // ==========================================
+        function exportToCSV() {
+            let csv = "Muestra_n,Tiempo_s,Trafico_Original_x_n,Trafico_Filtrado_y_n\n";
+            for (let i = 0; i < state.N; i++) {
+                csv += `${i},${state.timeArr[i].toFixed(4)},${state.x[i].toFixed(4)},${state.y[i].toFixed(4)}\n`;
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `trafico_red_filtrado_N${state.N}_a${state.a}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
